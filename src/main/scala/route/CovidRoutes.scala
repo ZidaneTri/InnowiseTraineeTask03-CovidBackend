@@ -17,15 +17,13 @@ import cats.syntax.all.*
 import io.circe.Encoder.AsObject
 
 object CovidRoutes {
-
- // implicit def decodeEither[ExtremeCaseValue, ExtremeCaseError](implicit decoderA: Decoder[ExtremeCaseValue], decoderB: Decoder[ExtremeCaseError]): Decoder[Either[ExtremeCaseValue, ExtremeCaseError]] = decoderA.either(decoderB)
-  //implicit def encodeEither[ExtremeCaseValue, ExtremeCaseError](implicit encoderA: Encoder[ExtremeCaseValue], encoderB: Encoder[ExtremeCaseError]): Encoder[Either[ExtremeCaseValue, ExtremeCaseError]] = encoderA.either(encoderB)
-  implicit val eitherEncoder: Encoder[Either[ExtremeCaseValue, ExtremeCaseError]] = deriveEncoder[Either[ExtremeCaseValue, ExtremeCaseError]]
- /* implicit def encodeEither[ExtremeCaseValue, ExtremeCaseError](implicit encodeA: Encoder[ExtremeCaseValue], encodeB: Encoder[ExtremeCaseError]
-  ): AsObject[Either[ExtremeCaseValue, ExtremeCaseError]] = {
-    case Left(a) =>
+  
+  
+  implicit def eitherEncoder[ExtremeCaseValue, ExtremeCaseError](implicit encodeA: Encoder[ExtremeCaseValue], encodeB: Encoder[ExtremeCaseError]
+  ): Encoder[Either[ExtremeCaseValue, ExtremeCaseError]] = {
+    case Left(a) => encodeA(a)
     case Right(b) => encodeB(b)
-  }*/
+  }
   implicit val eitherListEncoder: Encoder[List[Either[ExtremeCaseValue, ExtremeCaseError]]] = Encoder.encodeList[Either[ExtremeCaseValue, ExtremeCaseError]]
   implicit val intEitherEncoder: EntityEncoder[IO, Either[ExtremeCaseValue, ExtremeCaseError]] = jsonEncoderOf[IO, Either[ExtremeCaseValue, ExtremeCaseError]]
   implicit val intListEitherEncoder: EntityEncoder[IO, List[Either[ExtremeCaseValue, ExtremeCaseError]]] = jsonEncoderOf[IO, List[Either[ExtremeCaseValue, ExtremeCaseError]]]

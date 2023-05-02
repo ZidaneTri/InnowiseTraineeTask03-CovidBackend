@@ -20,7 +20,7 @@ class CountryService(client: Client[IO]) {
 
   val covidApiUri = uri"https://api.covid19api.com"
 
-  val countriesUri = covidApiUri / "/countries"
+  val countriesUri = covidApiUri / "countries"
 
   val minDate = LocalDateTime.of(2020, 1, 23, 0,0)
 
@@ -55,13 +55,20 @@ class CountryService(client: Client[IO]) {
   }
 
   def getCovidCasesFromApi(timeGap: TimeGap): IO[Either[ExtremeCaseValue, ExtremeCaseError]] = {
+    val countrySlug: String = dataCountry.get(timeGap.countryName) match {
+      case Some(slug: String) => slug
+      case None => "error"
+    }
+    if(countrySlug.equals("error")){
+      return IO(Right(ExtremeCaseError(timeGap.countryName, "The country you entered is wrong")))
+    }
+    if(validateDates(timeGap)){
+      return IO(Right(ExtremeCaseError(timeGap.countryName, "The dates you entered is wrong")))
+    }
 
-    val uri = covidApiUri / "total" / "country" / timeGap.countryName / "status" / "confirmed" +?
+    val uri = covidApiUri / "total" / "country" / countrySlug / "status" / "confirmed" +?
       ("from", timeGap.startDate) +? ("to", timeGap.endDate)
 
-    if(validateDates(timeGap)){
-      IO(Right(ExtremeCaseError(timeGap.countryName, "The dates you entered is wrong")))
-    }
     (for {
       covidCasesList <- client.expect[List[RawCaseData]](uri)
       dayCase = getDayCaseCount(covidCasesList)
@@ -85,11 +92,11 @@ class CountryService(client: Client[IO]) {
     val maxCaseDatesBuffer: ListBuffer[String] = ListBuffer.empty
     val minCaseCount = ascendingRawData.head.caseCount
     val maxCaseCount = descendingRawData.head.caseCount
-    for i <- 0 until ascendingRawData.length do {
+    for i <- ascendingRawData.indices do {
       if(ascendingRawData(i).caseCount == minCaseCount)
         minCaseDatesBuffer.addOne(ascendingRawData(i).date)
     }
-    for i <- 0 until descendingRawData.length do {
+    for i <- descendingRawData.indices do {
       if(descendingRawData(i).caseCount == maxCaseCount)
         maxCaseDatesBuffer.addOne(descendingRawData(i).date)
     }

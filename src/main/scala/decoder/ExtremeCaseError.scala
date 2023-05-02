@@ -7,7 +7,7 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import org.http4s.{EntityDecoder, EntityEncoder}
 import org.http4s.circe.{jsonEncoderOf, jsonOf}
 
-case class ExtremeCaseError(country: String, errorDescription: String) extends ExtremeCase
+case class ExtremeCaseError(country: String, errorDescription: String)
 
 object ExtremeCaseError {
   implicit val extremeCaseErrorDecoder: Decoder[ExtremeCaseError] = deriveDecoder[ExtremeCaseError]

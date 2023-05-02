@@ -7,7 +7,7 @@ import io.circe.generic.semiauto.{deriveDecoder, deriveEncoder}
 import org.http4s.circe._
 import org.http4s.{EntityDecoder, EntityEncoder}
 
-case class ExtremeCaseValue(country: String, minCaseCount: Int, minCaseDates: List[String], maxCaseCount: Int, maxCaseDates: List[String]) extends ExtremeCase
+case class ExtremeCaseValue(country: String, minCaseCount: Int, minCaseDates: List[String], maxCaseCount: Int, maxCaseDates: List[String])
 
 
 object ExtremeCaseValue {
