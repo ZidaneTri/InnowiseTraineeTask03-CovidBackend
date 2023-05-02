@@ -42,32 +42,32 @@ class CountryService(client: Client[IO]) {
      countryDataList
    }
 
-  def getExtremeCases (timeGaps: List[TimeGap]): IO[List[ExtremeCaseValue]] = {
+  def getExtremeCases (timeGaps: List[TimeGap]): IO[List[Either[ExtremeCaseValue,ExtremeCaseError]]] = {
     val fixedTimeGaps: List[TimeGap] = timeGaps.map(convertAndOverheadToDate)
-    val result: IO[List[ExtremeCaseValue]] = fixedTimeGaps.traverse(getCovidCasesFromApi)
+    val result: IO[List[Either[ExtremeCaseValue,ExtremeCaseError]]] = fixedTimeGaps.traverse(getCovidCasesFromApi)
     result
   }
 
   def convertAndOverheadToDate(timeGap: TimeGap): TimeGap = {
     val startDate = LocalDateTime.ofInstant(Instant.parse(timeGap.startDate), ZoneOffset.UTC).minusDays(1)
     val endDate = LocalDateTime.ofInstant(Instant.parse(timeGap.endDate), ZoneOffset.UTC)
-    TimeGap(timeGap.countryName,startDate.toString, timeGap.endDate)
+    TimeGap(timeGap.countryName,startDate.toString, endDate.toString)
   }
 
-  def getCovidCasesFromApi(timeGap: TimeGap): IO[ExtremeCaseValue] = {
+  def getCovidCasesFromApi(timeGap: TimeGap): IO[Either[ExtremeCaseValue, ExtremeCaseError]] = {
 
     val uri = covidApiUri / "total" / "country" / timeGap.countryName / "status" / "confirmed" +?
       ("from", timeGap.startDate) +? ("to", timeGap.endDate)
 
-    /*if(validateDates(timeGap)){
-      IO(ExtremeCaseError(timeGap.countryName, "The dates you entered is wrong"))
-    }*/
-    for {
+    if(validateDates(timeGap)){
+      IO(Right(ExtremeCaseError(timeGap.countryName, "The dates you entered is wrong")))
+    }
+    (for {
       covidCasesList <- client.expect[List[RawCaseData]](uri)
       dayCase = getDayCaseCount(covidCasesList)
-      extremeCase = getExtremeCaseValue(timeGap.countryName, dayCase)
+      extremeCase = Left(getExtremeCaseValue(timeGap.countryName, dayCase))
     } yield extremeCase
-      //).orElse(IO(ExtremeCaseError(timeGap.countryName, "Either external API is unreachable or country name you entered is wrong")))
+      ).orElse(IO(Right(ExtremeCaseError(timeGap.countryName, "Either external API is unreachable or country name you entered is wrong"))))
   }
 
   def getDayCaseCount(apiList: List[RawCaseData]): List[DayCaseCount] = {
