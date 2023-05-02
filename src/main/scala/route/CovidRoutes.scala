@@ -1,7 +1,7 @@
 package com.innowise
 package route
 
-import decoder.{CountryTimeGap, ExtremeCaseValue}
+import decoder.{TimeGap, ExtremeCaseValue}
 import service.CountryService
 
 import cats.effect.IO
@@ -13,11 +13,12 @@ import org.http4s.dsl.io.*
 import io.circe.Encoder.AsArray.importedAsArrayEncoder
 import io.circe.Encoder.AsObject.importedAsObjectEncoder
 import io.circe.Encoder.AsRoot.importedAsRootEncoder
+import cats.syntax.all.*
 
 object CovidRoutes {
 
   implicit val intEntityEncoder: EntityEncoder[IO, Int] = jsonEncoderOf[IO, Int]
-  implicit val testEncoder: EntityEncoder[IO, List[IO[Int]]] = jsonEncoderOf[IO, List[IO[Int]]]
+  implicit val intListEntityEncoder: EntityEncoder[IO, List[Int]] = jsonEncoderOf[IO, List[Int]]
 
   def helloWorldRoutes(countryService: CountryService): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
@@ -30,7 +31,7 @@ object CovidRoutes {
     HttpRoutes.of[IO] {
       case req@POST -> Root / "test" =>
         for {
-          timeGapList <- req.as[List[CountryTimeGap]]
+          timeGapList <- req.as[List[TimeGap]]
           caseList = countryService.getExtremeCases(timeGapList)
           resp <- Ok(caseList)
         } yield (resp)

@@ -1,17 +1,14 @@
 package com.innowise
 package service
 
-import decoder.{CaseDataApi, CountryData, CountryError, CountryTimeGap, DayCaseCount, ExtremeCaseValue}
-
-import cats.effect.IO
-import org.http4s.client.Client
-import org.http4s.dsl.Http4sDsl
+import decoder.{CountryInfo, DayCaseCount, ExtremeCase, ExtremeCaseError, ExtremeCaseValue, RawCaseData, TimeGap}
 import cats.effect.*
 import cats.syntax.all.*
 import org.http4s.*
+import org.http4s.client.Client
+import org.http4s.dsl.Http4sDsl
 import org.http4s.dsl.io.*
 import org.http4s.implicits.*
-import org.http4s.Uri
 
 import java.time.{Instant, LocalDateTime, ZoneOffset}
 import scala.collection.mutable
@@ -23,18 +20,20 @@ class CountryService(client: Client[IO]) {
 
   val covidApiUri = uri"https://api.covid19api.com"
 
-
   val countriesUri = covidApiUri / "/countries"
 
-   def getCountries: IO[List[CountryData]] = {
+  val minDate = LocalDateTime.of(2020, 1, 23, 0,0)
+
+
+   def getCountries: IO[List[CountryInfo]] = {
      for {
-       covidCasesList <- client.expect[List[CountryData]](countriesUri)
+       covidCasesList <- client.expect[List[CountryInfo]](countriesUri)
        covidCasesListClone = saveToMap(covidCasesList)
      } yield covidCasesList
    }
 
   //the dirty hack to have all country data in map. Probably the greatest mistake here.
-   def saveToMap(countryDataList: List[CountryData]): List[CountryData] = {
+   def saveToMap(countryDataList: List[CountryInfo]): List[CountryInfo] = {
      if(dataCountry.isEmpty){
        for (singleCountryData <- countryDataList) {
          dataCountry.addOne(singleCountryData.country, singleCountryData.slug)
@@ -43,31 +42,35 @@ class CountryService(client: Client[IO]) {
      countryDataList
    }
 
-  def getExtremeCases (timeGaps: List[CountryTimeGap]): IO[Int] = {
-    val fixedTimeGaps: List[CountryTimeGap] = timeGaps.map(addOverheadToDate)
-    for {
-      caselist <- getCovidCasesFromApi(fixedTimeGaps.head)
-      dayCase = getDayCaseCount(caselist)
-      sum = summarise(dayCase)
-    } yield sum
+  def getExtremeCases (timeGaps: List[TimeGap]): IO[List[ExtremeCaseValue]] = {
+    val fixedTimeGaps: List[TimeGap] = timeGaps.map(convertAndOverheadToDate)
+    val result: IO[List[ExtremeCaseValue]] = fixedTimeGaps.traverse(getCovidCasesFromApi)
+    result
   }
 
-  def addOverheadToDate(timeGap: CountryTimeGap): CountryTimeGap = {
+  def convertAndOverheadToDate(timeGap: TimeGap): TimeGap = {
     val startDate = LocalDateTime.ofInstant(Instant.parse(timeGap.startDate), ZoneOffset.UTC).minusDays(1)
-    // endDate = LocalDateTime.ofInstant(Instant.parse(timeGap.endDate), ZoneOffset.UTC).plusDays(1)
-    CountryTimeGap(timeGap.countryName,startDate.toString, timeGap.endDate)
+    val endDate = LocalDateTime.ofInstant(Instant.parse(timeGap.endDate), ZoneOffset.UTC)
+    TimeGap(timeGap.countryName,startDate.toString, timeGap.endDate)
   }
 
-  def getCovidCasesFromApi(countryTimeGap: CountryTimeGap): IO[List[CaseDataApi]] = {
+  def getCovidCasesFromApi(timeGap: TimeGap): IO[ExtremeCaseValue] = {
 
-    val uri = covidApiUri / "country" / countryTimeGap.countryName / "status" / "confirmed" +?
-      ("from", countryTimeGap.startDate) +? ("to", countryTimeGap.endDate)
+    val uri = covidApiUri / "total" / "country" / timeGap.countryName / "status" / "confirmed" +?
+      ("from", timeGap.startDate) +? ("to", timeGap.endDate)
+
+    /*if(validateDates(timeGap)){
+      IO(ExtremeCaseError(timeGap.countryName, "The dates you entered is wrong"))
+    }*/
     for {
-      covidCasesList <- client.expect[List[CaseDataApi]](uri)
-    } yield covidCasesList
+      covidCasesList <- client.expect[List[RawCaseData]](uri)
+      dayCase = getDayCaseCount(covidCasesList)
+      extremeCase = getExtremeCaseValue(timeGap.countryName, dayCase)
+    } yield extremeCase
+      //).orElse(IO(ExtremeCaseError(timeGap.countryName, "Either external API is unreachable or country name you entered is wrong")))
   }
 
-  def getDayCaseCount(apiList: List[CaseDataApi]): List[DayCaseCount] = {
+  def getDayCaseCount(apiList: List[RawCaseData]): List[DayCaseCount] = {
     val buffer: ListBuffer[DayCaseCount] = ListBuffer.empty
     for i <- 1 until apiList.length do {
       buffer.addOne(DayCaseCount(apiList(i).date, apiList(i).caseCount-apiList(i-1).caseCount))
@@ -75,14 +78,37 @@ class CountryService(client: Client[IO]) {
     buffer.toList
   }
 
-  /*def getExtremeCasesValue(rawData: List[DayCaseCount]): ExtremeCaseValue = {
+  def getExtremeCaseValue(country: String, rawData: List[DayCaseCount]): ExtremeCaseValue = {
+    val ascendingRawData = rawData.sortWith(_.caseCount < _.caseCount)
+    val descendingRawData = rawData.sortWith(_.caseCount > _.caseCount)
+    val minCaseDatesBuffer: ListBuffer[String] = ListBuffer.empty
+    val maxCaseDatesBuffer: ListBuffer[String] = ListBuffer.empty
+    val minCaseCount = ascendingRawData.head.caseCount
+    val maxCaseCount = descendingRawData.head.caseCount
+    for i <- 0 until ascendingRawData.length do {
+      if(ascendingRawData(i).caseCount == minCaseCount)
+        minCaseDatesBuffer.addOne(ascendingRawData(i).date)
+    }
+    for i <- 0 until descendingRawData.length do {
+      if(descendingRawData(i).caseCount == maxCaseCount)
+        maxCaseDatesBuffer.addOne(descendingRawData(i).date)
+    }
+    ExtremeCaseValue(country, minCaseCount, minCaseDatesBuffer.toList, maxCaseCount, maxCaseDatesBuffer.toList)
 
-  } */
-
-  def summarise(list: List[DayCaseCount]): Int = {
-    val sum:Int = list.map(_.caseCount).sum
-    sum
   }
+
+  def validateDates(timeGap: TimeGap): Boolean = {
+    val startDate = LocalDateTime.parse(timeGap.startDate)
+    val endDate = LocalDateTime.parse(timeGap.endDate)
+    if(startDate.compareTo(endDate) > 0)
+      true
+    else if(startDate.compareTo(minDate) < 0)
+      true
+    else if(endDate.compareTo(LocalDateTime.now()) > 0)
+      true
+    else false
+  }
+
 
 
 }

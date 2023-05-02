@@ -8,7 +8,7 @@ import org.http4s.dsl.io.*
 import org.http4s.implicits.*
 import org.http4s.ember.server.*
 import cats.effect.{IO, IOApp}
-import com.innowise.decoder.CountryData
+import com.innowise.decoder.CountryInfo
 import com.innowise.route.CovidRoutes
 import com.innowise.service.CountryService
 import org.http4s.ember.client.EmberClientBuilder
