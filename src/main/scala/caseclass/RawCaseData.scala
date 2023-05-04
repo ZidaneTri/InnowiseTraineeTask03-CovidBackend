@@ -1,5 +1,5 @@
 package com.innowise
-package decoder
+package caseclass
 
 import cats.effect.IO
 import io.circe.generic.semiauto.deriveEncoder

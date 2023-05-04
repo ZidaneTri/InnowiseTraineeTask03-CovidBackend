@@ -1,7 +1,7 @@
 package com.innowise
 package route
 
-import decoder.{CountryInfo, ExtremeCaseError, ExtremeCaseValue, TimeGap}
+import caseclass.{CountryInfo, ExtremeCaseError, ExtremeCaseValue, TimeGap}
 import service.CountryService
 
 import cats.effect.IO
@@ -17,16 +17,6 @@ import cats.syntax.all.*
 import io.circe.Encoder.AsObject
 
 object CovidRoutes {
-  
-  
-  implicit def eitherEncoder[ExtremeCaseValue, ExtremeCaseError](implicit encodeA: Encoder[ExtremeCaseValue], encodeB: Encoder[ExtremeCaseError]
-  ): Encoder[Either[ExtremeCaseValue, ExtremeCaseError]] = {
-    case Left(a) => encodeA(a)
-    case Right(b) => encodeB(b)
-  }
-  implicit val eitherListEncoder: Encoder[List[Either[ExtremeCaseValue, ExtremeCaseError]]] = Encoder.encodeList[Either[ExtremeCaseValue, ExtremeCaseError]]
-  implicit val intEitherEncoder: EntityEncoder[IO, Either[ExtremeCaseValue, ExtremeCaseError]] = jsonEncoderOf[IO, Either[ExtremeCaseValue, ExtremeCaseError]]
-  implicit val intListEitherEncoder: EntityEncoder[IO, List[Either[ExtremeCaseValue, ExtremeCaseError]]] = jsonEncoderOf[IO, List[Either[ExtremeCaseValue, ExtremeCaseError]]]
 
   def countriesRoute(countryService: CountryService): HttpRoutes[IO] =
     HttpRoutes.of[IO] {

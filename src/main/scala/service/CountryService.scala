@@ -1,7 +1,7 @@
 package com.innowise
 package service
 
-import decoder.{CountryInfo, DayCaseCount, ExtremeCaseError, ExtremeCaseValue, RawCaseData, TimeGap}
+import caseclass.{CountryInfo, DayCaseCount, ExtremeCaseError, ExtremeCaseValue, RawCaseData, TimeGap}
 import cats.effect.*
 import cats.syntax.all.*
 import org.http4s.*
