@@ -28,16 +28,16 @@ object CovidRoutes {
   implicit val intEitherEncoder: EntityEncoder[IO, Either[ExtremeCaseValue, ExtremeCaseError]] = jsonEncoderOf[IO, Either[ExtremeCaseValue, ExtremeCaseError]]
   implicit val intListEitherEncoder: EntityEncoder[IO, List[Either[ExtremeCaseValue, ExtremeCaseError]]] = jsonEncoderOf[IO, List[Either[ExtremeCaseValue, ExtremeCaseError]]]
 
-  def helloWorldRoutes(countryService: CountryService): HttpRoutes[IO] =
+  def countriesRoute(countryService: CountryService): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
-      case GET -> Root / "hello" => {
+      case GET -> Root / "countries" => {
         Ok(countryService.getCountries)
       }
     }
 
-  def testRoutes(countryService: CountryService): HttpRoutes[IO] =
+  def extremeCasesRoute(countryService: CountryService): HttpRoutes[IO] =
     HttpRoutes.of[IO] {
-      case req@POST -> Root / "test" =>
+      case req@POST -> Root / "extreme" =>
         for {
           timeGapList <- req.as[List[TimeGap]]
           caseList = countryService.getExtremeCases(timeGapList)

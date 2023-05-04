@@ -50,7 +50,7 @@ class CountryService(client: Client[IO]) {
 
   def convertAndOverheadToDate(timeGap: TimeGap): TimeGap = {
     val startDate = LocalDateTime.ofInstant(Instant.parse(timeGap.startDate), ZoneOffset.UTC).minusDays(1)
-    val endDate = LocalDateTime.ofInstant(Instant.parse(timeGap.endDate), ZoneOffset.UTC)
+    val endDate = LocalDateTime.ofInstant(Instant.parse(timeGap.endDate), ZoneOffset.UTC).plusDays(1)
     TimeGap(timeGap.countryName,startDate.toString, endDate.toString)
   }
 
@@ -79,7 +79,7 @@ class CountryService(client: Client[IO]) {
 
   def getDayCaseCount(apiList: List[RawCaseData]): List[DayCaseCount] = {
     val buffer: ListBuffer[DayCaseCount] = ListBuffer.empty
-    for i <- 1 until apiList.length do {
+    for i <- 1 until apiList.length-1 do {
       buffer.addOne(DayCaseCount(apiList(i).date, apiList(i).caseCount-apiList(i-1).caseCount))
     }
     buffer.toList
